@@ -1,10 +1,6 @@
 package com.adawriter.desktop;
 
 import com.adawriter.writing.domain.WritingAction;
-import java.awt.AWTException;
-import java.awt.MenuItem;
-import java.awt.PopupMenu;
-import java.awt.TrayIcon;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +16,7 @@ public final class DesktopTrayController {
     private final Runnable onExit;
     private final SystemTrayGateway trayGateway;
     private final ClipboardGateway clipboardGateway;
-    private TrayIcon trayIcon;
+    private boolean started;
 
     public DesktopTrayController(ClipboardAssistService clipboardAssist, Runnable onExit) {
         this(clipboardAssist, onExit, new AwtSystemTrayGateway(), new AwtClipboardGateway());
@@ -40,34 +36,24 @@ public final class DesktopTrayController {
     public boolean start() {
         if (!trayGateway.isSupported()) {
             log.warn("system_tray_unsupported continuing_with_agent_api_only");
+            started = false;
             return false;
         }
-        try {
-            PopupMenu menu = new PopupMenu();
-            menu.add(actionItem("Rewrite clipboard", WritingAction.REWRITE));
-            menu.add(actionItem("Shorten clipboard", WritingAction.SHORTEN));
-            menu.add(actionItem("Expand clipboard", WritingAction.EXPAND));
-            menu.add(actionItem("Fix grammar", WritingAction.FIX_GRAMMAR));
-            menu.addSeparator();
-            MenuItem exit = new MenuItem("Exit AdaWriter");
-            exit.addActionListener(e -> onExit.run());
-            menu.add(exit);
-
-            trayIcon = new TrayIcon(trayGateway.createTrayImage(), "AdaWriter", menu);
-            trayIcon.setImageAutoSize(true);
-            trayGateway.add(trayIcon);
-            log.info("desktop_tray_started");
-            return true;
-        } catch (AWTException ex) {
-            log.warn("desktop_tray_failed reason={}", ex.toString());
+        boolean installed = trayGateway.install(this::runAssist, onExit);
+        if (!installed) {
+            log.warn("desktop_tray_failed");
+            started = false;
             return false;
         }
+        started = true;
+        log.info("desktop_tray_started");
+        return true;
     }
 
     public void stop() {
-        if (trayIcon != null && trayGateway.isSupported()) {
-            trayGateway.remove(trayIcon);
-            trayIcon = null;
+        if (started) {
+            trayGateway.uninstall();
+            started = false;
             log.info("desktop_tray_stopped");
         }
     }
@@ -76,21 +62,10 @@ public final class DesktopTrayController {
     void runAssist(WritingAction action) {
         try {
             clipboardAssist.assistFromClipboard(action, clipboardGateway::readText, clipboardGateway::writeText);
-            if (trayIcon != null) {
-                trayGateway.displayMessage(
-                        trayIcon, "AdaWriter", action.name() + " applied to clipboard", TrayIcon.MessageType.INFO);
-            }
+            trayGateway.notifyInfo("AdaWriter", action.name() + " applied to clipboard");
         } catch (RuntimeException ex) {
             log.warn("clipboard_assist_failed action={} reason={}", action, ex.getMessage());
-            if (trayIcon != null) {
-                trayGateway.displayMessage(trayIcon, "AdaWriter", ex.getMessage(), TrayIcon.MessageType.ERROR);
-            }
+            trayGateway.notifyError("AdaWriter", ex.getMessage());
         }
-    }
-
-    private MenuItem actionItem(String label, WritingAction action) {
-        MenuItem item = new MenuItem(label);
-        item.addActionListener(e -> runAssist(action));
-        return item;
     }
 }

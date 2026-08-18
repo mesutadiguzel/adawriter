@@ -16,3 +16,8 @@ dependencies {
     implementation(project(":modules:privacy-application"))
     implementation(libs.logback.classic)
 }
+
+tasks.named<Test>("test") {
+    // Tray unit tests use fakes; keep CI/Linux runners headless-safe.
+    systemProperty("java.awt.headless", "true")
+}

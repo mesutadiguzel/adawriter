@@ -26,8 +26,8 @@ jobs:
       - name: Spotless check
         run: ./gradlew spotlessCheck --no-daemon
 
-      - name: Test with coverage
-        run: ./gradlew test jacocoTestReport --no-daemon
+      - name: Desktop quality check
+        run: ./gradlew desktopQualityCheck --no-daemon
 
       - name: Upload test reports
         if: always()
