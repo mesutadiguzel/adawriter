@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: AdaWriter Desktop Agent API
-  version: 0.1.0
-  description: Localhost writing assistance API for Phase 1.
+  version: 0.2.0
+  description: Localhost writing assistance and privacy detection API.
 servers:
   - url: http://127.0.0.1:8787
 paths:
@@ -20,7 +20,7 @@ paths:
           description: Counters
   /v1/assist:
     post:
-      summary: Assist with writing
+      summary: Assist with writing (sensitive content redacted/blocked before AI egress)
       requestBody:
         required: true
         content:
@@ -45,5 +45,45 @@ paths:
           description: Assisted text
         "400":
           description: Invalid request
+        "422":
+          description: Sensitive content blocked
         "502":
           description: Provider failure
+  /v1/privacy/detect:
+    post:
+      summary: Detect sensitive spans without returning raw secret values
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+      responses:
+        "200":
+          description: Findings (category tokens only)
+  /v1/privacy/redact:
+    post:
+      summary: Detect and redact or block sensitive content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                policy:
+                  type: string
+                  enum: [REDACT, BLOCK, REPORT_ONLY]
+                  default: REDACT
+      responses:
+        "200":
+          description: Redacted text and findings
+        "422":
+          description: Blocked by privacy policy

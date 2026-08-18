@@ -2,6 +2,7 @@ package com.adawriter.writing.adapter.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.adawriter.privacy.application.PrivacyGuard;
 import com.adawriter.writing.application.AssistWritingUseCase;
 import com.adawriter.writing.application.WritingMetrics;
 import com.adawriter.writing.domain.WritingAction;
@@ -13,7 +14,8 @@ class OfflineRuleBasedAiProviderIntegrationTest {
 
     @Test
     void assistRewriteUsesOfflineProvider() {
-        AssistWritingUseCase useCase = new AssistWritingUseCase(new OfflineRuleBasedAiProvider(), new WritingMetrics());
+        AssistWritingUseCase useCase = new AssistWritingUseCase(
+                new OfflineRuleBasedAiProvider(), new WritingMetrics(), PrivacyGuard.withDefaults());
 
         WritingResult result =
                 useCase.execute(WritingRequest.of("adaWriter helps writers stay private.", WritingAction.REWRITE));

@@ -13,14 +13,16 @@ Every decision ranks: **UX → Performance → Security → Simplicity → Relia
 - Local API: [docs/api/openapi-desktop-agent-v1.yaml](docs/api/openapi-desktop-agent-v1.yaml)
 - Security: [docs/SECURITY.md](docs/SECURITY.md)
 
-## Phase 1 layout
+## Phase layout
 
 ```text
-modules/writing-domain          # entities, ports (no frameworks)
-modules/writing-application     # use cases, prompts, validation, metrics
-modules/writing-adapter-ai      # offline + OpenAI-compatible + failover
-modules/writing-adapter-rest    # localhost JDK HttpServer
-apps/desktop-agent              # composition root
+modules/writing-domain
+modules/writing-application
+modules/writing-adapter-ai
+modules/writing-adapter-rest
+modules/privacy-domain
+modules/privacy-application
+apps/desktop-agent
 ```
 
 ## Quick start
@@ -32,6 +34,7 @@ apps/desktop-agent              # composition root
 
 ```bash
 curl -s http://127.0.0.1:8787/v1/assist -H "Content-Type: application/json" -d "{\"text\":\"Hello team.\",\"action\":\"REWRITE\"}"
+curl -s http://127.0.0.1:8787/v1/privacy/detect -H "Content-Type: application/json" -d "{\"text\":\"Reach jane@example.com\"}"
 ```
 
 Cloud with offline failover:
@@ -46,8 +49,8 @@ set ADAWRITER_AI_API_KEY=sk-...
 
 | Phase | Branch | Focus |
 |---|---|---|
-| 1 | `feature/phase-1-foundation` | Foundation (current) |
-| 2 | `feature/phase-2-text-detection` | Text detection & privacy |
+| 1 | `feature/phase-1-foundation` | Foundation |
+| 2 | `feature/phase-2-text-detection` | Text detection & privacy (current) |
 | 3 | `feature/phase-3-ai-engine` | AI engine depth |
 | 4 | `feature/phase-4-desktop-integration` | Desktop integration |
 | 5 | `feature/phase-5-mobile-keyboard` | Mobile keyboard |

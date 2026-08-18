@@ -1,5 +1,8 @@
 package com.adawriter.writing.application;
 
+import com.adawriter.privacy.application.PrivacyGuard;
+import com.adawriter.privacy.domain.RedactionResult;
+import com.adawriter.privacy.domain.SensitiveContentBlockedException;
 import com.adawriter.writing.domain.AiCompletionCommand;
 import com.adawriter.writing.domain.AiCompletionResult;
 import com.adawriter.writing.domain.AiProviderException;
@@ -22,18 +25,23 @@ public final class AssistWritingUseCase {
 
     private final AiProviderPort aiProvider;
     private final WritingMetrics metrics;
+    private final PrivacyGuard privacyGuard;
 
-    public AssistWritingUseCase(AiProviderPort aiProvider, WritingMetrics metrics) {
+    public AssistWritingUseCase(AiProviderPort aiProvider, WritingMetrics metrics, PrivacyGuard privacyGuard) {
         this.aiProvider = Objects.requireNonNull(aiProvider, "aiProvider");
         this.metrics = Objects.requireNonNull(metrics, "metrics");
+        this.privacyGuard = Objects.requireNonNull(privacyGuard, "privacyGuard");
     }
 
     public WritingResult execute(WritingRequest request) {
         Objects.requireNonNull(request, "request");
         try {
+            RedactionResult protectedText = privacyGuard.protectForAssist(request.text());
+            WritingRequest safeRequest = request.withText(protectedText.text());
+
             AiCompletionCommand command = new AiCompletionCommand(
                     PromptCatalog.systemPrompt(),
-                    PromptCatalog.userPrompt(request),
+                    PromptCatalog.userPrompt(safeRequest),
                     WritingConstraints.DEFAULT_MAX_TOKENS);
             AiCompletionResult completion = aiProvider.complete(command);
             String validated = OutputValidator.validate(completion.text());
@@ -45,14 +53,15 @@ public final class AssistWritingUseCase {
                     completion.latencyMs());
             metrics.recordSuccess(result.latencyMs());
             log.info(
-                    "assist_success provider={} model={} action={} latencyMs={} promptVersion={}",
+                    "assist_success provider={} model={} action={} latencyMs={} promptVersion={} privacyFindings={}",
                     result.providerId(),
                     result.modelId(),
                     request.action(),
                     result.latencyMs(),
-                    result.promptVersion());
+                    result.promptVersion(),
+                    protectedText.detection().findingCount());
             return result;
-        } catch (ValidationException | AiProviderException ex) {
+        } catch (SensitiveContentBlockedException | ValidationException | AiProviderException ex) {
             metrics.recordFailure();
             log.warn(
                     "assist_failure provider={} action={} type={} reason={}",

@@ -2,6 +2,7 @@ package com.adawriter.writing.adapter.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.adawriter.privacy.application.PrivacyGuard;
 import com.adawriter.writing.adapter.ai.OfflineRuleBasedAiProvider;
 import com.adawriter.writing.application.AssistWritingUseCase;
 import com.adawriter.writing.application.WritingMetrics;
@@ -22,8 +23,10 @@ class LocalWritingHttpServerTest {
     @BeforeEach
     void setUp() throws Exception {
         WritingMetrics metrics = new WritingMetrics();
-        AssistWritingUseCase useCase = new AssistWritingUseCase(new OfflineRuleBasedAiProvider(), metrics);
-        server = new LocalWritingHttpServer(useCase, metrics, findFreePort());
+        PrivacyGuard privacyGuard = PrivacyGuard.withDefaults();
+        AssistWritingUseCase useCase =
+                new AssistWritingUseCase(new OfflineRuleBasedAiProvider(), metrics, privacyGuard);
+        server = new LocalWritingHttpServer(useCase, privacyGuard, metrics, findFreePort());
         server.start();
     }
 
@@ -61,6 +64,42 @@ class LocalWritingHttpServerTest {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).contains("outputText");
         assertThat(response.body()).contains("offline");
+    }
+
+    @Test
+    void detectFindsEmailWithoutReturningRawValueInFindingsToken() throws Exception {
+        String payload = """
+                {"text":"Reach jane.doe@example.com today"}
+                """;
+        HttpResponse<String> response = client.send(
+                HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + server.port() + "/v1/privacy/detect"))
+                        .timeout(Duration.ofSeconds(5))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(payload))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("EMAIL");
+        assertThat(response.body()).contains("[EMAIL]");
+        assertThat(response.body()).doesNotContain("jane.doe@example.com");
+    }
+
+    @Test
+    void redactReplacesEmail() throws Exception {
+        String payload =
+                """
+                {"text":"Reach jane.doe@example.com today","policy":"REDACT"}
+                """;
+        HttpResponse<String> response = client.send(
+                HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + server.port() + "/v1/privacy/redact"))
+                        .timeout(Duration.ofSeconds(5))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(payload))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("Reach [EMAIL] today");
+        assertThat(response.body()).doesNotContain("jane.doe@example.com");
     }
 
     private static int findFreePort() throws Exception {

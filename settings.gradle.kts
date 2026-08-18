@@ -5,5 +5,7 @@ include(
     "modules:writing-application",
     "modules:writing-adapter-ai",
     "modules:writing-adapter-rest",
+    "modules:privacy-domain",
+    "modules:privacy-application",
     "apps:desktop-agent"
 )

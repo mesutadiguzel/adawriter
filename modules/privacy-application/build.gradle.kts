@@ -3,8 +3,6 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":modules:writing-domain"))
     implementation(project(":modules:privacy-domain"))
-    implementation(project(":modules:privacy-application"))
     implementation(libs.slf4j.api)
 }

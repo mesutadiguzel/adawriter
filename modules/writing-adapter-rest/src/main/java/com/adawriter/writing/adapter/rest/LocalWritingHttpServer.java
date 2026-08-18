@@ -1,5 +1,11 @@
 package com.adawriter.writing.adapter.rest;
 
+import com.adawriter.privacy.application.PrivacyGuard;
+import com.adawriter.privacy.domain.DetectionResult;
+import com.adawriter.privacy.domain.RedactionPolicy;
+import com.adawriter.privacy.domain.RedactionResult;
+import com.adawriter.privacy.domain.SensitiveContentBlockedException;
+import com.adawriter.privacy.domain.SensitiveSpan;
 import com.adawriter.writing.application.AssistWritingUseCase;
 import com.adawriter.writing.application.WritingMetrics;
 import com.adawriter.writing.domain.AiProviderException;
@@ -12,6 +18,7 @@ import com.adawriter.writing.domain.WritingResult;
 import com.adawriter.writing.domain.WritingTone;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -36,14 +43,17 @@ public final class LocalWritingHttpServer implements AutoCloseable {
     private static final int MAX_BODY_BYTES = WritingConstraints.MAX_TEXT_CHARS * 4;
 
     private final AssistWritingUseCase assistWriting;
+    private final PrivacyGuard privacyGuard;
     private final WritingMetrics metrics;
     private final ObjectMapper objectMapper;
     private final int port;
     private HttpServer server;
     private ExecutorService executor;
 
-    public LocalWritingHttpServer(AssistWritingUseCase assistWriting, WritingMetrics metrics, int port) {
+    public LocalWritingHttpServer(
+            AssistWritingUseCase assistWriting, PrivacyGuard privacyGuard, WritingMetrics metrics, int port) {
         this.assistWriting = Objects.requireNonNull(assistWriting, "assistWriting");
+        this.privacyGuard = Objects.requireNonNull(privacyGuard, "privacyGuard");
         this.metrics = Objects.requireNonNull(metrics, "metrics");
         this.objectMapper = new ObjectMapper();
         if (port < 0 || port > 65535) {
@@ -58,6 +68,8 @@ public final class LocalWritingHttpServer implements AutoCloseable {
         server.createContext("/health", this::health);
         server.createContext("/metrics", this::metrics);
         server.createContext("/v1/assist", this::assist);
+        server.createContext("/v1/privacy/detect", this::detect);
+        server.createContext("/v1/privacy/redact", this::redact);
         server.setExecutor(executor);
         server.start();
         log.info("local_writing_http_started bind=127.0.0.1:{}", port);
@@ -112,6 +124,54 @@ public final class LocalWritingHttpServer implements AutoCloseable {
         writeJson(exchange, 200, body);
     }
 
+    private void detect(HttpExchange exchange) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            methodNotAllowed(exchange);
+            return;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(readBody(exchange));
+            String text = textOrThrow(root, "text");
+            DetectionResult detection = privacyGuard.detect(text);
+            writeJson(exchange, 200, toDetectionJson(detection));
+        } catch (ValidationException | IllegalArgumentException ex) {
+            writeError(exchange, 400, safeClientMessage(ex));
+        } catch (RuntimeException ex) {
+            log.warn("detect_unhandled type={} reason={}", ex.getClass().getSimpleName(), ex.getMessage());
+            writeError(exchange, 500, "Internal error");
+        }
+    }
+
+    private void redact(HttpExchange exchange) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            methodNotAllowed(exchange);
+            return;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(readBody(exchange));
+            String text = textOrThrow(root, "text");
+            RedactionPolicy policy = RedactionPolicy.REDACT;
+            if (root.hasNonNull("policy")) {
+                policy = RedactionPolicy.valueOf(
+                        root.get("policy").asText().trim().toUpperCase(Locale.ROOT));
+            }
+            RedactionResult result = privacyGuard.protect(text, policy);
+            ObjectNode body = toDetectionJson(result.detection());
+            body.put("redactedText", result.text());
+            body.put("policy", result.policyApplied().name());
+            writeJson(exchange, 200, body);
+        } catch (SensitiveContentBlockedException ex) {
+            ObjectNode body = toDetectionJson(ex.detection());
+            body.put("error", "Sensitive content blocked by privacy policy");
+            writeJson(exchange, 422, body);
+        } catch (ValidationException | IllegalArgumentException ex) {
+            writeError(exchange, 400, safeClientMessage(ex));
+        } catch (RuntimeException ex) {
+            log.warn("redact_unhandled type={} reason={}", ex.getClass().getSimpleName(), ex.getMessage());
+            writeError(exchange, 500, "Internal error");
+        }
+    }
+
     private void assist(HttpExchange exchange) throws IOException {
         if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
             methodNotAllowed(exchange);
@@ -139,6 +199,10 @@ public final class LocalWritingHttpServer implements AutoCloseable {
             body.put("promptVersion", result.promptVersion());
             body.put("latencyMs", result.latencyMs());
             writeJson(exchange, 200, body);
+        } catch (SensitiveContentBlockedException ex) {
+            ObjectNode body = toDetectionJson(ex.detection());
+            body.put("error", "Sensitive content blocked by privacy policy");
+            writeJson(exchange, 422, body);
         } catch (ValidationException | IllegalArgumentException ex) {
             writeError(exchange, 400, safeClientMessage(ex));
         } catch (AiProviderException ex) {
@@ -149,6 +213,20 @@ public final class LocalWritingHttpServer implements AutoCloseable {
             log.warn("assist_unhandled type={} reason={}", ex.getClass().getSimpleName(), ex.getMessage());
             writeError(exchange, 500, "Internal error");
         }
+    }
+
+    private ObjectNode toDetectionJson(DetectionResult detection) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("findingCount", detection.findingCount());
+        ArrayNode findings = body.putArray("findings");
+        for (SensitiveSpan span : detection.spans()) {
+            ObjectNode item = findings.addObject();
+            item.put("start", span.startInclusive());
+            item.put("end", span.endExclusive());
+            item.put("category", span.category().name());
+            item.put("token", span.redactionToken());
+        }
+        return body;
     }
 
     private static String safeClientMessage(Exception ex) {

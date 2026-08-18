@@ -44,6 +44,14 @@ public final class WritingRequest {
         return locale;
     }
 
+    public WritingRequest withText(String newText) {
+        Builder builder = builder(newText, action).locale(locale);
+        if (tone != null) {
+            builder.tone(tone);
+        }
+        return builder.build();
+    }
+
     public static final class Builder {
         private final String text;
         private final WritingAction action;
