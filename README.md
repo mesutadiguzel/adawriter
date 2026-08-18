@@ -1,6 +1,6 @@
 # AdaWriter
 
-Privacy-first AI writing platform designed to feel lightweight, secure, and fast on desktop, mobile, browser, and enterprise environments.
+Privacy-first AI writing assistant focused on **desktop** first (mobile deferred).
 
 ## Engineering standards
 
@@ -8,59 +8,44 @@ Every decision ranks: **UX → Performance → Security → Simplicity → Relia
 
 - Requirements: [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)
 - Delivery process: [docs/DELIVERY.md](docs/DELIVERY.md)
+- Autonomous mode: [docs/AUTONOMOUS_DELIVERY.md](docs/AUTONOMOUS_DELIVERY.md)
 - Architecture ADRs: [docs/architecture/](docs/architecture/)
-- Phase 1 checklist: [docs/phases/phase-1-foundation.md](docs/phases/phase-1-foundation.md)
 - Local API: [docs/api/openapi-desktop-agent-v1.yaml](docs/api/openapi-desktop-agent-v1.yaml)
 - Security: [docs/SECURITY.md](docs/SECURITY.md)
 
-## Phase layout
+## Desktop layout (active focus)
 
 ```text
-modules/writing-domain
-modules/writing-application
-modules/writing-adapter-ai
-modules/writing-adapter-rest
-modules/privacy-domain
-modules/privacy-application
-apps/desktop-agent
-apps/desktop-shell
-mobile/keyboard
+modules/writing-* + privacy-*   # hexagonal core
+apps/desktop-agent              # localhost API only
+apps/desktop-shell              # tray + clipboard assist + API
 ```
 
-## Quick start
+## Quick start (desktop)
 
 ```bash
-./gradlew.bat qualityCheck
+./gradlew.bat desktopQualityCheck
 ./gradlew.bat :apps:desktop-shell:run
 ```
 
-Tray actions rewrite/shorten/expand/fix clipboard text. Agent API remains on `127.0.0.1:8787`.
-
-Mobile IME:
-
-```bash
-./gradlew.bat :mobile:keyboard:assembleDebug
-```
+Tray actions: rewrite / shorten / expand / fix grammar on clipboard text.  
+API: `http://127.0.0.1:8787` (`/v1/assist`, `/v1/privacy/detect`, `/v1/privacy/redact`)
 
 ```bash
 curl -s http://127.0.0.1:8787/v1/assist -H "Content-Type: application/json" -d "{\"text\":\"Hello team.\",\"action\":\"REWRITE\"}"
 curl -s http://127.0.0.1:8787/v1/privacy/detect -H "Content-Type: application/json" -d "{\"text\":\"Reach jane@example.com\"}"
 ```
 
-Cloud with offline failover:
+## Testing
+
+**Rule:** aim for **100% JaCoCo line coverage** when the application is finished. Phase work may land below that temporarily; gaps must be closed before done.
 
 ```bash
-set ADAWRITER_AI_PROVIDER=openai-compatible+offline
-set ADAWRITER_AI_API_KEY=sk-...
-./gradlew.bat :apps:desktop-agent:run
+# Desktop modules only (recommended)
+./gradlew.bat desktopQualityCheck
+
+# Alias
+./gradlew.bat qualityCheck
 ```
 
-## Delivery phases
-
-| Phase | Branch | Focus |
-|---|---|---|
-| 1 | `feature/phase-1-foundation` | Foundation |
-| 2 | `feature/phase-2-text-detection` | Text detection & privacy |
-| 3 | `feature/phase-3-ai-engine` | AI engine depth |
-| 4 | `feature/phase-4-desktop-integration` | Desktop integration |
-| 5 | `feature/phase-5-mobile-keyboard` | Mobile keyboard (current) |
+Positive and negative JUnit coverage covers domain validation, privacy detection/redaction, assist use-case, REST API, AI routing/circuit breaker, and desktop clipboard assist.

@@ -4,13 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class SensitiveTextDetectorTest {
 
     private final SensitiveTextDetector detector = new SensitiveTextDetector();
 
     @Test
-    void detectsEmailAndRedacts() {
+    void positive_detectsAndRedactsEmail() {
         String text = "Contact me at jane.doe@example.com please.";
         DetectionResult detection = detector.detect(text);
         assertThat(detection.hasFindings()).isTrue();
@@ -25,29 +27,26 @@ class SensitiveTextDetectorTest {
     }
 
     @Test
-    void detectsValidCreditCardWithLuhn() {
-        // Visa test PAN that passes Luhn
+    void positive_detectsValidCreditCardWithLuhn() {
         String text = "Card 4111 1111 1111 1111 on file";
         DetectionResult detection = detector.detect(text);
         assertThat(detection.spans()).anyMatch(span -> span.category() == SensitivityCategory.CREDIT_CARD);
     }
 
     @Test
-    void rejectsInvalidCardLikeDigits() {
-        String text = "Order id 1234 5678 9012 3456 is not a card";
-        DetectionResult detection = detector.detect(text);
-        assertThat(detection.spans()).noneMatch(span -> span.category() == SensitivityCategory.CREDIT_CARD);
+    void positive_detectsUsSsn() {
+        DetectionResult detection = detector.detect("SSN 123-45-6789 on file");
+        assertThat(detection.spans()).anyMatch(span -> span.category() == SensitivityCategory.US_SSN);
     }
 
     @Test
-    void blockPolicyThrows() {
-        String text = "key=api_testkey_abcdefghijklmnopqr";
-        assertThatThrownBy(() -> detector.apply(text, RedactionPolicy.BLOCK))
-                .isInstanceOf(SensitiveContentBlockedException.class);
+    void positive_detectsIpv4() {
+        DetectionResult detection = detector.detect("Server at 192.168.1.10 replied");
+        assertThat(detection.spans()).anyMatch(span -> span.category() == SensitivityCategory.IPV4);
     }
 
     @Test
-    void detectsPrivateKeyBlock() {
+    void positive_detectsPrivateKeyBlock() {
         String text =
                 """
                 -----BEGIN PRIVATE KEY-----
@@ -56,5 +55,51 @@ class SensitiveTextDetectorTest {
                 """;
         DetectionResult detection = detector.detect(text);
         assertThat(detection.spans()).anyMatch(span -> span.category() == SensitivityCategory.PRIVATE_KEY_BLOCK);
+    }
+
+    @Test
+    void positive_reportOnlyDoesNotAlterText() {
+        String text = "mail me at a@b.co";
+        RedactionResult result = detector.apply(text, RedactionPolicy.REPORT_ONLY);
+        assertThat(result.text()).isEqualTo(text);
+        assertThat(result.detection().hasFindings()).isTrue();
+        assertThat(result.blocked()).isFalse();
+    }
+
+    @Test
+    void negative_cleanTextHasNoFindings() {
+        DetectionResult detection = detector.detect("AdaWriter helps writers stay private and fast.");
+        assertThat(detection.hasFindings()).isFalse();
+        assertThat(detector.apply(detection.originalText(), RedactionPolicy.BLOCK)
+                        .text())
+                .isEqualTo(detection.originalText());
+    }
+
+    @Test
+    void negative_rejectsInvalidCardLikeDigits() {
+        String text = "Order id 1234 5678 9012 3456 is not a card";
+        DetectionResult detection = detector.detect(text);
+        assertThat(detection.spans()).noneMatch(span -> span.category() == SensitivityCategory.CREDIT_CARD);
+    }
+
+    @Test
+    void negative_blockPolicyThrowsOnSecret() {
+        String text = "key=api_testkey_abcdefghijklmnopqr";
+        assertThatThrownBy(() -> detector.apply(text, RedactionPolicy.BLOCK))
+                .isInstanceOf(SensitiveContentBlockedException.class)
+                .hasMessageContaining("blocked");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "plain note", "Call the office tomorrow"})
+    void negative_emptyOrBenignTextIsSafe(String text) {
+        assertThat(detector.detect(text).hasFindings()).isFalse();
+    }
+
+    @Test
+    void negative_nullTextTreatedAsEmpty() {
+        DetectionResult detection = detector.detect(null);
+        assertThat(detection.originalText()).isEmpty();
+        assertThat(detection.hasFindings()).isFalse();
     }
 }

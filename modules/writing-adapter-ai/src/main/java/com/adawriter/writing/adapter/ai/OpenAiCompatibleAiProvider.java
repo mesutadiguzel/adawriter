@@ -31,7 +31,11 @@ public final class OpenAiCompatibleAiProvider implements AiProviderPort {
     private final Duration timeout;
 
     public OpenAiCompatibleAiProvider(URI endpoint, String apiKey, String model, Duration timeout) {
-        this.httpClient = HttpClient.newBuilder().connectTimeout(timeout).build();
+        this(HttpClient.newBuilder().connectTimeout(timeout).build(), endpoint, apiKey, model, timeout);
+    }
+
+    OpenAiCompatibleAiProvider(HttpClient httpClient, URI endpoint, String apiKey, String model, Duration timeout) {
+        this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
         this.objectMapper = new ObjectMapper();
         this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
         this.apiKey = Objects.requireNonNull(apiKey, "apiKey");

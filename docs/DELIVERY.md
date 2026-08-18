@@ -18,6 +18,7 @@ AdaWriter is delivered **one phase at a time**, each on its own Git branch. A ph
 7. Prioritize correctness over rapid delivery.
 8. Follow SOLID, Clean Architecture, DDD, and Secure-by-Design.
 9. Every change must be fully tested before merging.
+10. **Coverage goal:** aim for **100% line coverage** of finished application code (JaCoCo). Interim phases may be below 100%, but gaps must be intentional, tracked, and closed before the product is considered finished. No production code is exempt without an explicit documented exception.
 
 ## Product phases
 
