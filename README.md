@@ -50,7 +50,7 @@ set ADAWRITER_AI_API_KEY=sk-...
 | Phase | Branch | Focus |
 |---|---|---|
 | 1 | `feature/phase-1-foundation` | Foundation |
-| 2 | `feature/phase-2-text-detection` | Text detection & privacy (current) |
-| 3 | `feature/phase-3-ai-engine` | AI engine depth |
+| 2 | `feature/phase-2-text-detection` | Text detection & privacy |
+| 3 | `feature/phase-3-ai-engine` | AI engine depth (current) |
 | 4 | `feature/phase-4-desktop-integration` | Desktop integration |
 | 5 | `feature/phase-5-mobile-keyboard` | Mobile keyboard |
