@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AdaWriter Keyboard</string>
+    <string name="ime_name">AdaWriter</string>
+    <string name="action_rewrite">Rewrite</string>
+    <string name="action_shorten">Shorten</string>
+    <string name="action_expand">Expand</string>
+    <string name="action_fix_grammar">Fix</string>
+</resources>

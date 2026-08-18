@@ -6,6 +6,7 @@ slf4j = "2.0.17"
 logback = "1.5.18"
 jacoco = "0.8.13"
 spotless = "7.0.4"
+agp = "8.7.3"
 
 [libraries]
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
@@ -17,3 +18,4 @@ logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "lo
 
 [plugins]
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+android-application = { id = "com.android.application", version.ref = "agp" }

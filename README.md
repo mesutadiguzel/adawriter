@@ -24,6 +24,7 @@ modules/privacy-domain
 modules/privacy-application
 apps/desktop-agent
 apps/desktop-shell
+mobile/keyboard
 ```
 
 ## Quick start
@@ -34,6 +35,12 @@ apps/desktop-shell
 ```
 
 Tray actions rewrite/shorten/expand/fix clipboard text. Agent API remains on `127.0.0.1:8787`.
+
+Mobile IME:
+
+```bash
+./gradlew.bat :mobile:keyboard:assembleDebug
+```
 
 ```bash
 curl -s http://127.0.0.1:8787/v1/assist -H "Content-Type: application/json" -d "{\"text\":\"Hello team.\",\"action\":\"REWRITE\"}"
@@ -55,5 +62,5 @@ set ADAWRITER_AI_API_KEY=sk-...
 | 1 | `feature/phase-1-foundation` | Foundation |
 | 2 | `feature/phase-2-text-detection` | Text detection & privacy |
 | 3 | `feature/phase-3-ai-engine` | AI engine depth |
-| 4 | `feature/phase-4-desktop-integration` | Desktop integration (current) |
-| 5 | `feature/phase-5-mobile-keyboard` | Mobile keyboard |
+| 4 | `feature/phase-4-desktop-integration` | Desktop integration |
+| 5 | `feature/phase-5-mobile-keyboard` | Mobile keyboard (current) |
