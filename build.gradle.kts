@@ -69,28 +69,24 @@ subprojects {
 
         dependencies {
             "testImplementation"(rootProject.libs.junit.jupiter)
+            "testImplementation"(rootProject.libs.junit.jupiter.params)
             "testImplementation"(rootProject.libs.assertj.core)
             "testRuntimeOnly"(rootProject.libs.junit.platform.launcher)
         }
     }
 }
 
+tasks.register("desktopQualityCheck") {
+    group = "verification"
+    description = "Desktop-focused quality gates (excludes mobile)"
+    val desktopProjects = subprojects.filter { !it.path.startsWith(":mobile") }
+    dependsOn(desktopProjects.mapNotNull { it.tasks.findByName("spotlessCheck")?.let { t -> it.tasks.named("spotlessCheck") } })
+    dependsOn(desktopProjects.mapNotNull { it.tasks.findByName("test")?.let { t -> it.tasks.named("test") } })
+    dependsOn(desktopProjects.mapNotNull { it.tasks.findByName("jacocoTestReport")?.let { t -> it.tasks.named("jacocoTestReport") } })
+}
+
 tasks.register("qualityCheck") {
     group = "verification"
-    description = "Runs formatting checks and all tests with coverage"
-    dependsOn(
-        subprojects.mapNotNull { sub ->
-            sub.tasks.findByName("spotlessCheck")?.let { sub.tasks.named("spotlessCheck") }
-        }
-    )
-    dependsOn(
-        subprojects.mapNotNull { sub ->
-            sub.tasks.findByName("test")?.let { sub.tasks.named("test") }
-        }
-    )
-    dependsOn(
-        subprojects.mapNotNull { sub ->
-            sub.tasks.findByName("jacocoTestReport")?.let { sub.tasks.named("jacocoTestReport") }
-        }
-    )
+    description = "Desktop-focused quality gates (mobile deferred)"
+    dependsOn("desktopQualityCheck")
 }

@@ -40,3 +40,11 @@ Single user → enterprise/global. Horizontal scale, multi-region, multi-tenancy
 ## Testing, Ops, A11y, Docs
 
 Unit/integration/contract/perf/load/security/a11y/e2e with quality gates. Structured logs, metrics, tracing, dashboards, alerts, audits. WCAG 2.2 AA. CI/CD, IaC, blue/green or canary. ADRs, API docs, diagrams, runbooks, security docs, onboarding guides.
+
+### Coverage rule
+
+**Target: 100% line coverage (JaCoCo) when the application is finished.**
+
+- Every finished production class/method must be covered by automated tests (positive and negative paths).
+- Interim phase coverage may be lower, but remaining gaps are tracked and closed before release-complete.
+- Exceptions (e.g. pure OS tray wiring that requires UI automation) must be rare, documented, and minimized.
