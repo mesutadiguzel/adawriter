@@ -1,21 +1,25 @@
 package com.adawriter.desktop;
 
-import java.awt.AWTException;
-import java.awt.Image;
-import java.awt.TrayIcon;
+import com.adawriter.writing.domain.WritingAction;
+import java.util.function.Consumer;
 
 /**
- * Abstraction over AWT system tray so tray controller logic is unit-testable.
+ * Abstraction over system tray install/notify so controller logic is headless-testable.
  */
 public interface SystemTrayGateway {
 
     boolean isSupported();
 
-    Image createTrayImage();
+    /**
+     * Installs the tray UI. Invokes {@code onAction} for assist menu items and {@code onExit} for exit.
+     *
+     * @return true when tray UI was installed
+     */
+    boolean install(Consumer<WritingAction> onAction, Runnable onExit);
 
-    void add(TrayIcon icon) throws AWTException;
+    void uninstall();
 
-    void remove(TrayIcon icon);
+    void notifyInfo(String caption, String text);
 
-    void displayMessage(TrayIcon icon, String caption, String text, TrayIcon.MessageType type);
+    void notifyError(String caption, String text);
 }
