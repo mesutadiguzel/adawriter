@@ -7,5 +7,6 @@ include(
     "modules:writing-adapter-rest",
     "modules:privacy-domain",
     "modules:privacy-application",
-    "apps:desktop-agent"
+    "apps:desktop-agent",
+    "apps:desktop-shell"
 )
