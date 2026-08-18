@@ -67,4 +67,11 @@ class FallbackAiProviderTest {
                 .isInstanceOf(AiProviderException.class)
                 .hasMessageContaining("All AI providers failed");
     }
+
+    @Test
+    void negative_rejectsEmptyProviderList() {
+        assertThatThrownBy(() -> new FallbackAiProvider(List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("empty");
+    }
 }

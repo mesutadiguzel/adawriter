@@ -32,6 +32,33 @@ class OfflineRuleBasedAiProviderTest {
         assertThat(result.text()).isEqualTo("Keep calm");
     }
 
+    @Test
+    void positive_changeToneProfessionalAndCasual() {
+        assertThat(provider.complete(commandWithTone("CHANGE_TONE", "Doc", "professional"))
+                        .text())
+                .isEqualTo("Doc");
+        assertThat(provider.complete(commandWithTone("CHANGE_TONE", "Doc", "casual"))
+                        .text())
+                .isEqualTo("Doc");
+    }
+
+    @Test
+    void positive_rewriteEmptyDocument() {
+        assertThat(provider.complete(command("REWRITE", "")).text()).isEmpty();
+    }
+
+    @Test
+    void positive_shortenSingleSentenceUnchanged() {
+        assertThat(provider.complete(command("SHORTEN", "Only one.")).text()).isEqualTo("Only one.");
+    }
+
+    @Test
+    void positive_extractsWithoutDelimiters() {
+        AiCompletionResult result =
+                provider.complete(new AiCompletionCommand("sys", "Action: REWRITE\nhello world", 64));
+        assertThat(result.text()).isEqualTo("Action: REWRITE\nhello world");
+    }
+
     private static AiCompletionCommand command(String action, String document) {
         String userPrompt =
                 """
@@ -43,6 +70,21 @@ class OfflineRuleBasedAiProviderTest {
                 ---
                 """
                         .formatted(action, document);
+        return new AiCompletionCommand("system", userPrompt, 128);
+    }
+
+    private static AiCompletionCommand commandWithTone(String action, String document, String tone) {
+        String userPrompt =
+                """
+                Action: %s
+                Tone: %s
+                Locale: en
+                Document:
+                ---
+                %s
+                ---
+                """
+                        .formatted(action, tone, document);
         return new AiCompletionCommand("system", userPrompt, 128);
     }
 }

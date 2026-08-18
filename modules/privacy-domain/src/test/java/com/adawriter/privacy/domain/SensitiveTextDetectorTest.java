@@ -102,4 +102,38 @@ class SensitiveTextDetectorTest {
         assertThat(detection.originalText()).isEmpty();
         assertThat(detection.hasFindings()).isFalse();
     }
+
+    @Test
+    void positive_redactWithNoFindingsReturnsOriginal() {
+        String text = "nothing sensitive";
+        assertThat(detector.apply(text, RedactionPolicy.REDACT).text()).isEqualTo(text);
+    }
+
+    @Test
+    void positive_resolvesOverlappingPrivateKeyAndEmailPreferringLongerSpan() {
+        String text =
+                """
+                -----BEGIN PRIVATE KEY-----
+                contact admin@example.com inside
+                -----END PRIVATE KEY-----
+                """;
+        DetectionResult detection = detector.detect(text);
+        assertThat(detection.spans()).isNotEmpty();
+        assertThat(detection.spans()).anyMatch(span -> span.category() == SensitivityCategory.PRIVATE_KEY_BLOCK);
+        RedactionResult redacted = detector.apply(text, RedactionPolicy.REDACT);
+        assertThat(redacted.text()).contains("[PRIVATE_KEY_BLOCK]");
+        assertThat(redacted.text()).doesNotContain("admin@example.com");
+    }
+
+    @Test
+    void negative_blockExposesDetectionAccessor() {
+        String text = "key=api_testkey_abcdefghijklmnopqr";
+        try {
+            detector.apply(text, RedactionPolicy.BLOCK);
+        } catch (SensitiveContentBlockedException ex) {
+            assertThat(ex.detection().hasFindings()).isTrue();
+            return;
+        }
+        throw new AssertionError("expected SensitiveContentBlockedException");
+    }
 }

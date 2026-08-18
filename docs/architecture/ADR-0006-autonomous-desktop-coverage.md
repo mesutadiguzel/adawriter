@@ -20,9 +20,9 @@ AdaWriter now has Phases 1–5 merged. Desktop is the active product focus. An a
 ## Evidence (this slice)
 
 - Gate: `./gradlew.bat desktopQualityCheck` passes.
-- Aggregate desktop JaCoCo line coverage: **~65.5% → ~83.8%** (698/833 lines).
-- Module highlights: `writing-domain` 100%, `privacy-application` 100%, `writing-adapter-ai` ~91%, `desktop-shell` ~55% (tray controller ~96%; AWT gateways + `main` remain).
-- Remaining tracked gaps: `DesktopShellMain` / agent `main`, AWT gateway wrappers, residual REST/AI/application branches.
+- Aggregate desktop JaCoCo line coverage: **~65.5% → ~83.8% → ~88.3%**.
+- Module highlights after slice-2: `writing-domain` 100%, `privacy-application` 100%, `writing-adapter-ai` ~99.5%, `writing-application` ~98.6%, `writing-adapter-rest` ~90.8%, `privacy-domain` ~96.5%.
+- Remaining tracked gaps: composition-root `main` methods, AWT gateway wrappers, residual REST stop/interrupt and rare error branches.
 
 ## Consequences
 

@@ -193,4 +193,83 @@ class OpenAiCompatibleAiProviderTest {
                 .isInstanceOf(AiProviderException.class)
                 .hasMessageContaining("I/O");
     }
+
+    @Test
+    void negative_interruptedCallBecomesProviderException() {
+        HttpClient failing = new HttpClient() {
+            @Override
+            public Optional<Authenticator> authenticator() {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<CookieHandler> cookieHandler() {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<Duration> connectTimeout() {
+                return Optional.empty();
+            }
+
+            @Override
+            public HttpClient.Redirect followRedirects() {
+                return Redirect.NEVER;
+            }
+
+            @Override
+            public Optional<ProxySelector> proxy() {
+                return Optional.empty();
+            }
+
+            @Override
+            public SSLContext sslContext() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public SSLParameters sslParameters() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public Optional<Executor> executor() {
+                return Optional.empty();
+            }
+
+            @Override
+            public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler)
+                    throws InterruptedException {
+                throw new InterruptedException("cancelled");
+            }
+
+            @Override
+            public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+                    HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+                    HttpRequest request,
+                    HttpResponse.BodyHandler<T> responseBodyHandler,
+                    HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public HttpClient.Version version() {
+                return Version.HTTP_1_1;
+            }
+        };
+
+        OpenAiCompatibleAiProvider provider = new OpenAiCompatibleAiProvider(
+                failing, URI.create("http://127.0.0.1:9/v1/chat/completions"), "", "gpt-test", Duration.ofSeconds(1));
+
+        assertThatThrownBy(() -> provider.complete(new AiCompletionCommand("sys", "user", 64)))
+                .isInstanceOf(AiProviderException.class)
+                .hasMessageContaining("interrupted");
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        Thread.interrupted();
+    }
 }

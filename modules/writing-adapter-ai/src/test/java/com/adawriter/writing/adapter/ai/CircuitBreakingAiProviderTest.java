@@ -45,6 +45,51 @@ class CircuitBreakingAiProviderTest {
         assertThat(calls.get()).isEqualTo(2);
     }
 
+    @Test
+    void negative_rejectsInvalidThreshold() {
+        assertThatThrownBy(() -> new CircuitBreakingAiProvider(providerOk(), 0, Duration.ofSeconds(1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("failureThreshold");
+    }
+
+    @Test
+    void positive_successResetsFailureCount() {
+        AtomicInteger calls = new AtomicInteger();
+        AiProviderPort flaky = new AiProviderPort() {
+            @Override
+            public AiCompletionResult complete(AiCompletionCommand command) {
+                int n = calls.incrementAndGet();
+                if (n == 1) {
+                    throw new AiProviderException("transient");
+                }
+                return new AiCompletionResult("ok", "m", 1L);
+            }
+
+            @Override
+            public String providerId() {
+                return "flaky";
+            }
+        };
+        CircuitBreakingAiProvider breaker = new CircuitBreakingAiProvider(flaky, 3, Duration.ofSeconds(30));
+        assertThatThrownBy(() -> breaker.complete(cmd())).isInstanceOf(AiProviderException.class);
+        assertThat(breaker.complete(cmd()).text()).isEqualTo("ok");
+        assertThat(breaker.openEvents()).isZero();
+    }
+
+    private static AiProviderPort providerOk() {
+        return new AiProviderPort() {
+            @Override
+            public AiCompletionResult complete(AiCompletionCommand command) {
+                return new AiCompletionResult("ok", "m", 1L);
+            }
+
+            @Override
+            public String providerId() {
+                return "ok";
+            }
+        };
+    }
+
     private static AiCompletionCommand cmd() {
         return new AiCompletionCommand("sys", "user", 64);
     }

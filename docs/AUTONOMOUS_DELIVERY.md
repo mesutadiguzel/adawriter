@@ -48,4 +48,4 @@ Requirements, tests passing, security/performance considerations addressed for t
 
 ## Current focus (active)
 
-**Desktop product quality** (mobile deferred): raise coverage toward 100%, harden desktop-shell/agent, keep architecture clean. Latest measured aggregate after coverage-hardening slice: **~83.8%** line coverage.
+**Desktop product quality** (mobile deferred): raise coverage toward 100%, harden desktop-shell/agent, keep architecture clean. Latest measured aggregate: **~88.3%** line coverage (slice-2).
