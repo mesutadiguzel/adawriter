@@ -11,6 +11,7 @@ import com.adawriter.writing.domain.AiCompletionCommand;
 import com.adawriter.writing.domain.AiCompletionResult;
 import com.adawriter.writing.domain.AiProviderException;
 import com.adawriter.writing.domain.AiProviderPort;
+import com.adawriter.writing.domain.UnexpectedWritingException;
 import com.adawriter.writing.domain.ValidationException;
 import com.adawriter.writing.domain.WritingAction;
 import com.adawriter.writing.domain.WritingRequest;
@@ -34,6 +35,7 @@ class AssistWritingUseCaseTest {
         assertThat(result.promptVersion()).isEqualTo(PromptRegistry.activeVersion());
         assertThat(metrics.assistRequests()).isEqualTo(1);
         assertThat(metrics.assistFailures()).isZero();
+        assertThat(metrics.totalLatencyMs()).isEqualTo(12L);
     }
 
     @Test
@@ -143,6 +145,28 @@ class AssistWritingUseCaseTest {
         AssistWritingUseCase useCase =
                 new AssistWritingUseCase(providerReturning("ok"), new WritingMetrics(), PrivacyGuard.withDefaults());
         assertThatThrownBy(() -> useCase.execute(null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void negative_wrapsUnexpectedRuntimeFailures() {
+        AiProviderPort provider = new AiProviderPort() {
+            @Override
+            public AiCompletionResult complete(AiCompletionCommand command) {
+                throw new IllegalStateException("boom");
+            }
+
+            @Override
+            public String providerId() {
+                return "test";
+            }
+        };
+        WritingMetrics metrics = new WritingMetrics();
+        AssistWritingUseCase useCase = new AssistWritingUseCase(provider, metrics, PrivacyGuard.withDefaults());
+
+        assertThatThrownBy(() -> useCase.execute(WritingRequest.of("Hello", WritingAction.REWRITE)))
+                .isInstanceOf(UnexpectedWritingException.class)
+                .hasCauseInstanceOf(IllegalStateException.class);
+        assertThat(metrics.assistFailures()).isEqualTo(1);
     }
 
     private static AiProviderPort providerReturning(String output) {

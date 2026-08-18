@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.adawriter.writing.domain.ValidationException;
+import com.adawriter.writing.domain.WritingConstraints;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -41,5 +42,29 @@ class OutputGuardrailsTest {
         assertThatThrownBy(() -> OutputGuardrails.enforce(repeated))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("repetition");
+    }
+
+    @Test
+    void positive_allowsLongNonRepetitiveText() {
+        StringBuilder text = new StringBuilder();
+        for (int i = 0; i < 50; i++) {
+            text.append("unique-chunk-").append(i).append(' ');
+        }
+        assertThat(OutputGuardrails.enforce(text.toString())).contains("unique-chunk-0");
+    }
+
+    @Test
+    void negative_rejectsBlankAfterFenceStrip() {
+        assertThatThrownBy(() -> OutputGuardrails.enforce("```\n   \n```"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("blank");
+    }
+
+    @Test
+    void negative_rejectsOversizedOutput() {
+        String huge = "a".repeat(WritingConstraints.MAX_OUTPUT_CHARS + 1);
+        assertThatThrownBy(() -> OutputGuardrails.enforce(huge))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("size limit");
     }
 }

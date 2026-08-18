@@ -44,4 +44,14 @@ class DesktopRuntimeConfigTest {
         assertThatThrownBy(() -> DesktopRuntimeConfig.parseAssistPolicy("YEET"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void negative_constructorRejectsInvalidValues() {
+        assertThatThrownBy(() -> new DesktopRuntimeConfig(0, RedactionPolicy.REDACT))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("port");
+        assertThatThrownBy(() -> new DesktopRuntimeConfig(8787, RedactionPolicy.REPORT_ONLY))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("REDACT or BLOCK");
+    }
 }
