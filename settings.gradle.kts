@@ -1,3 +1,19 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
 rootProject.name = "adawriter"
 
 include(
@@ -8,5 +24,6 @@ include(
     "modules:privacy-domain",
     "modules:privacy-application",
     "apps:desktop-agent",
-    "apps:desktop-shell"
+    "apps:desktop-shell",
+    "mobile:keyboard"
 )
