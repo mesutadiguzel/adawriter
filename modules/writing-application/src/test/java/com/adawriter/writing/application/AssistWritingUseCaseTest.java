@@ -40,7 +40,7 @@ class AssistWritingUseCaseTest {
         assertThat(result.outputText()).isEqualTo("Clean output");
         assertThat(result.providerId()).isEqualTo("test");
         assertThat(result.modelId()).isEqualTo("test-model");
-        assertThat(result.promptVersion()).isEqualTo(PromptCatalog.VERSION);
+        assertThat(result.promptVersion()).isEqualTo(PromptRegistry.activeVersion());
         assertThat(metrics.assistRequests()).isEqualTo(1);
         assertThat(metrics.assistFailures()).isZero();
     }

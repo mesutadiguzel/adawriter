@@ -40,26 +40,27 @@ public final class AssistWritingUseCase {
             WritingRequest safeRequest = request.withText(protectedText.text());
 
             AiCompletionCommand command = new AiCompletionCommand(
-                    PromptCatalog.systemPrompt(),
-                    PromptCatalog.userPrompt(safeRequest),
+                    PromptRegistry.systemPrompt(),
+                    PromptRegistry.userPrompt(safeRequest),
                     WritingConstraints.DEFAULT_MAX_TOKENS);
             AiCompletionResult completion = aiProvider.complete(command);
-            String validated = OutputValidator.validate(completion.text());
+            String validated = OutputGuardrails.enforce(completion.text());
             WritingResult result = new WritingResult(
                     validated,
                     aiProvider.providerId(),
                     completion.modelId(),
-                    PromptCatalog.VERSION,
+                    PromptRegistry.activeVersion(),
                     completion.latencyMs());
             metrics.recordSuccess(result.latencyMs());
             log.info(
-                    "assist_success provider={} model={} action={} latencyMs={} promptVersion={} privacyFindings={}",
+                    "assist_success provider={} model={} action={} latencyMs={} promptVersion={} privacyFindings={} estimatedTokens={}",
                     result.providerId(),
                     result.modelId(),
                     request.action(),
                     result.latencyMs(),
                     result.promptVersion(),
-                    protectedText.detection().findingCount());
+                    protectedText.detection().findingCount(),
+                    estimateTokens(command.systemPrompt(), command.userPrompt(), validated));
             return result;
         } catch (SensitiveContentBlockedException | ValidationException | AiProviderException ex) {
             metrics.recordFailure();
@@ -80,5 +81,10 @@ public final class AssistWritingUseCase {
                     ex.getMessage());
             throw new UnexpectedWritingException("Unexpected writing assistance failure", ex);
         }
+    }
+
+    private static int estimateTokens(String systemPrompt, String userPrompt, String output) {
+        int chars = systemPrompt.length() + userPrompt.length() + output.length();
+        return Math.max(1, chars / 4);
     }
 }
