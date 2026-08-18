@@ -1,0 +1,49 @@
+openapi: 3.0.3
+info:
+  title: AdaWriter Desktop Agent API
+  version: 0.1.0
+  description: Localhost writing assistance API for Phase 1.
+servers:
+  - url: http://127.0.0.1:8787
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: Agent is up
+  /metrics:
+    get:
+      summary: In-process metrics
+      responses:
+        "200":
+          description: Counters
+  /v1/assist:
+    post:
+      summary: Assist with writing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, action]
+              properties:
+                text:
+                  type: string
+                action:
+                  type: string
+                  enum: [REWRITE, SHORTEN, EXPAND, FIX_GRAMMAR, CHANGE_TONE]
+                tone:
+                  type: string
+                  enum: [NEUTRAL, PROFESSIONAL, CASUAL, CONFIDENT, FRIENDLY]
+                locale:
+                  type: string
+                  default: en
+      responses:
+        "200":
+          description: Assisted text
+        "400":
+          description: Invalid request
+        "502":
+          description: Provider failure

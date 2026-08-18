@@ -1,0 +1,68 @@
+package com.adawriter.writing.application;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.adawriter.writing.domain.AiCompletionCommand;
+import com.adawriter.writing.domain.AiCompletionResult;
+import com.adawriter.writing.domain.AiProviderPort;
+import com.adawriter.writing.domain.ValidationException;
+import com.adawriter.writing.domain.WritingAction;
+import com.adawriter.writing.domain.WritingRequest;
+import com.adawriter.writing.domain.WritingResult;
+import org.junit.jupiter.api.Test;
+
+class AssistWritingUseCaseTest {
+
+    @Test
+    void returnsValidatedResultFromProvider() {
+        AiProviderPort provider = new AiProviderPort() {
+            @Override
+            public AiCompletionResult complete(AiCompletionCommand command) {
+                assertThat(command.systemPrompt()).contains("AdaWriter");
+                assertThat(command.userPrompt()).contains("Hello");
+                return new AiCompletionResult("```\nClean output\n```", "test-model", 12L);
+            }
+
+            @Override
+            public String providerId() {
+                return "test";
+            }
+        };
+
+        WritingMetrics metrics = new WritingMetrics();
+        AssistWritingUseCase useCase = new AssistWritingUseCase(provider, metrics);
+
+        WritingResult result = useCase.execute(WritingRequest.of("Hello", WritingAction.REWRITE));
+
+        assertThat(result.outputText()).isEqualTo("Clean output");
+        assertThat(result.providerId()).isEqualTo("test");
+        assertThat(result.modelId()).isEqualTo("test-model");
+        assertThat(result.promptVersion()).isEqualTo(PromptCatalog.VERSION);
+        assertThat(metrics.assistRequests()).isEqualTo(1);
+        assertThat(metrics.assistFailures()).isZero();
+    }
+
+    @Test
+    void recordsFailureWhenProviderReturnsEmpty() {
+        AiProviderPort provider = new AiProviderPort() {
+            @Override
+            public AiCompletionResult complete(AiCompletionCommand command) {
+                return new AiCompletionResult("   ", "test-model", 1L);
+            }
+
+            @Override
+            public String providerId() {
+                return "test";
+            }
+        };
+
+        WritingMetrics metrics = new WritingMetrics();
+        AssistWritingUseCase useCase = new AssistWritingUseCase(provider, metrics);
+
+        assertThatThrownBy(() -> useCase.execute(WritingRequest.of("Hello", WritingAction.REWRITE)))
+                .isInstanceOf(ValidationException.class);
+
+        assertThat(metrics.assistFailures()).isEqualTo(1);
+    }
+}
