@@ -3,6 +3,7 @@ package com.adawriter.writing.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.adawriter.privacy.application.PrivacyGuard;
 import com.adawriter.writing.domain.AiCompletionCommand;
 import com.adawriter.writing.domain.AiCompletionResult;
 import com.adawriter.writing.domain.AiProviderPort;
@@ -10,6 +11,7 @@ import com.adawriter.writing.domain.ValidationException;
 import com.adawriter.writing.domain.WritingAction;
 import com.adawriter.writing.domain.WritingRequest;
 import com.adawriter.writing.domain.WritingResult;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class AssistWritingUseCaseTest {
@@ -31,7 +33,7 @@ class AssistWritingUseCaseTest {
         };
 
         WritingMetrics metrics = new WritingMetrics();
-        AssistWritingUseCase useCase = new AssistWritingUseCase(provider, metrics);
+        AssistWritingUseCase useCase = new AssistWritingUseCase(provider, metrics, PrivacyGuard.withDefaults());
 
         WritingResult result = useCase.execute(WritingRequest.of("Hello", WritingAction.REWRITE));
 
@@ -41,6 +43,30 @@ class AssistWritingUseCaseTest {
         assertThat(result.promptVersion()).isEqualTo(PromptCatalog.VERSION);
         assertThat(metrics.assistRequests()).isEqualTo(1);
         assertThat(metrics.assistFailures()).isZero();
+    }
+
+    @Test
+    void redactsSensitiveContentBeforeProviderCall() {
+        AtomicReference<String> seenUserPrompt = new AtomicReference<>();
+        AiProviderPort provider = new AiProviderPort() {
+            @Override
+            public AiCompletionResult complete(AiCompletionCommand command) {
+                seenUserPrompt.set(command.userPrompt());
+                return new AiCompletionResult("ok", "test-model", 1L);
+            }
+
+            @Override
+            public String providerId() {
+                return "test";
+            }
+        };
+
+        AssistWritingUseCase useCase =
+                new AssistWritingUseCase(provider, new WritingMetrics(), PrivacyGuard.withDefaults());
+        useCase.execute(WritingRequest.of("Email jane.doe@example.com now", WritingAction.REWRITE));
+
+        assertThat(seenUserPrompt.get()).contains("[EMAIL]");
+        assertThat(seenUserPrompt.get()).doesNotContain("jane.doe@example.com");
     }
 
     @Test
@@ -58,7 +84,7 @@ class AssistWritingUseCaseTest {
         };
 
         WritingMetrics metrics = new WritingMetrics();
-        AssistWritingUseCase useCase = new AssistWritingUseCase(provider, metrics);
+        AssistWritingUseCase useCase = new AssistWritingUseCase(provider, metrics, PrivacyGuard.withDefaults());
 
         assertThatThrownBy(() -> useCase.execute(WritingRequest.of("Hello", WritingAction.REWRITE)))
                 .isInstanceOf(ValidationException.class);
